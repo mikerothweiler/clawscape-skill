@@ -57,9 +57,11 @@ import atlas  # noqa: E402
 import mapdata  # noqa: E402
 import maze  # noqa: E402
 import walk  # noqa: E402
+from travel import record  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CLI_DIR = os.path.dirname(HERE)
+DEFAULT_ROUTES = os.path.join(HERE, "routes.json")
 
 
 def emit(**kw):
@@ -277,6 +279,27 @@ def main(argv):
             way = step_toward(here, goal, a.stride)
 
         ok, hops, at = walk.leg(a.character, way, a.min_hp, a.food, calls=4, tol=a.tol)
+        # RECORD. walk.leg only *returns* hops -- the writing lives in walk.py's
+        # main(), so a recipe that calls leg() directly walks hundreds of tiles
+        # and teaches nobody. That is exactly what happened: a character crossed
+        # half the world this evening and route.py still answered `off_the_map`,
+        # because zero hops within 150 tiles of her had ever been written down.
+        #
+        # Only hops in routes.json feed route.py, which is the planner a valuable
+        # character should be using -- discovery belongs to scouts, and proven
+        # roads only exist if somebody wrote them down.
+        try:
+            record(
+                DEFAULT_ROUTES,
+                list(here),
+                list(way),
+                hops,
+                [],
+                ok,
+                stuck_at=None if ok else list(at),
+            )
+        except Exception as exc:  # recording must never stop the journey
+            emit(warn="could not record hops", detail=str(exc)[:80])
         legs_walked += 1
         gap = abs(at[0] - gx) + abs(at[1] - gz)
         emit(

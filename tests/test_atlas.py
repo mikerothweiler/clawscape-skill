@@ -281,3 +281,30 @@ class WallsSitOnEdgesNotTiles(unittest.TestCase):
     def test_centrepieces_occupy_whole_tiles(self):
         for shape in (9, 10, 11):
             self.assertIn(shape, self.mapdata.SOLID_SHAPES)
+
+
+class TravelRecipesMustRecord(unittest.TestCase):
+    """Only hops written to routes.json feed route.py, the proven-roads planner.
+
+    walk.leg() returns hops but does not write them -- the writing lives in
+    walk.py's main(). So any recipe calling leg() directly walks a long way and
+    teaches nobody, which is how a character crossed half the world and still
+    got `off_the_map` from route.py.
+    """
+
+    def test_trek_records_hops(self):
+        src = open(os.path.join(RECIPES, "trek.py")).read()
+        self.assertIn(
+            "record(",
+            src,
+            "trek.py calls walk.leg() directly, so it must record hops itself",
+        )
+
+    def test_walk_records_hops(self):
+        src = open(os.path.join(RECIPES, "walk.py")).read()
+        self.assertIn("record(", src)
+
+    def test_route_reads_the_atlas(self):
+        """The atlas is the richest record of ground actually stood on."""
+        src = open(os.path.join(RECIPES, "route.py")).read()
+        self.assertIn("add_atlas_tiles", src)
